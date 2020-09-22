@@ -310,6 +310,91 @@ class OrthographicCamera(Camera):
         return P
 
 
+class OrthographicCamera2D(Camera):
+    """A perspective camera for orthographic projection.
+
+    Parameters
+    ----------
+    xmag : float
+        The floating-point horizontal magnification of the view.
+    ymag : float
+        The floating-point vertical magnification of the view.
+    znear : float
+        The floating-point distance to the near clipping plane.
+        If not specified, defaults to 0.05.
+    zfar : float
+        The floating-point distance to the far clipping plane.
+        ``zfar`` must be greater than ``znear``.
+        If not specified, defaults to 100.0.
+    name : str, optional
+        The user-defined name of this object.
+    """
+
+    def __init__(self,
+                 xmag,
+                 ymag,
+                 name=None):
+        super(OrthographicCamera2D, self).__init__(
+            name=name,
+        )
+
+        self.xmag = xmag
+        self.ymag = ymag
+
+    @property
+    def xmag(self):
+        """float : The horizontal magnification of the view.
+        """
+        return self._xmag
+
+    @xmag.setter
+    def xmag(self, value):
+        value = float(value)
+        if value <= 0.0:
+            raise ValueError('X magnification must be positive')
+        self._xmag = value
+
+    @property
+    def ymag(self):
+        """float : The vertical magnification of the view.
+        """
+        return self._ymag
+
+    @ymag.setter
+    def ymag(self, value):
+        value = float(value)
+        if value <= 0.0:
+            raise ValueError('Y magnification must be positive')
+        self._ymag = value
+
+    def get_projection_matrix(self, width=None, height=None):
+        """Return the OpenGL projection matrix for this camera.
+
+        Parameters
+        ----------
+        width : int
+            Width of the current viewport, in pixels.
+            Unused in this function.
+        height : int
+            Height of the current viewport, in pixels.
+            Unused in this function.
+        """
+        xmag = self.xmag
+        ymag = self.ymag
+
+        # If screen width/height defined, rescale xmag
+        if width is not None and height is not None:
+            xmag = width / height * ymag
+
+        P = np.zeros((4,4))
+        P[0][0] = 1.0 / xmag
+        P[1][1] = 1.0 / ymag
+        P[2][2] = -1.0
+        P[2][3] = 0.0
+        P[3][3] = 1.0
+        return P
+
+
 class IntrinsicsCamera(Camera):
     """A perspective camera with custom intrinsics.
 
