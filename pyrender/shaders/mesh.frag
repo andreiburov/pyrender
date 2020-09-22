@@ -12,10 +12,10 @@ struct SpotLight {
     float light_angle_scale;
     float light_angle_offset;
 
-    #ifdef SPOT_LIGHT_SHADOWS
+#ifdef SPOT_LIGHT_SHADOWS
     sampler2D shadow_map;
     mat4 light_matrix;
-    #endif
+#endif
 };
 
 struct DirectionalLight {
@@ -23,10 +23,10 @@ struct DirectionalLight {
     float intensity;
     vec3 direction;
 
-    #ifdef DIRECTIONAL_LIGHT_SHADOWS
+#ifdef DIRECTIONAL_LIGHT_SHADOWS
     sampler2D shadow_map;
     mat4 light_matrix;
-    #endif
+#endif
 };
 
 struct PointLight {
@@ -35,9 +35,9 @@ struct PointLight {
     float range;
     vec3 position;
 
-    #ifdef POINT_LIGHT_SHADOWS
+#ifdef POINT_LIGHT_SHADOWS
     samplerCube shadow_map;
-    #endif
+#endif
 };
 
 struct Material {
@@ -112,26 +112,33 @@ uniform samplerCube specular_env;
 // Inputs
 ///////////////////////////////////////////////////////////////////////////////
 
-in vec3 frag_position;
+in int gl_PrimitiveID;
+
+in GS_OUT {
+    vec3 frag_position;
 #ifdef NORMAL_LOC
-in vec3 frag_normal;
+    vec3 frag_normal;
 #endif
 #ifdef HAS_NORMAL_TEX
 #ifdef TANGENT_LOC
 #ifdef NORMAL_LOC
-in mat3 tbn;
+    mat3 tbn;
 #endif
 #endif
 #endif
 #ifdef TEXCOORD_0_LOC
-in vec2 uv_0;
+    vec2 uv_0;
 #endif
 #ifdef TEXCOORD_1_LOC
-in vec2 uv_1;
+    vec2 uv_1;
 #endif
 #ifdef COLOR_0_LOC
-in vec4 color_multiplier;
+    vec4 color_multiplier;
 #endif
+#ifdef BARYCENTRIC_COORDINATES
+    vec4 barycentric_coordinates;
+#endif
+} fs_in;
 
 ///////////////////////////////////////////////////////////////////////////////
 // OUTPUTS
@@ -168,14 +175,14 @@ vec3 get_normal()
 #ifdef HAS_NORMAL_TEX
 
 #ifndef HAS_TANGENTS
-    vec3 pos_dx = dFdx(frag_position);
-    vec3 pos_dy = dFdy(frag_position);
-    vec3 tex_dx = dFdx(vec3(uv_0, 0.0));
-    vec3 tex_dy = dFdy(vec3(uv_0, 0.0));
+    vec3 pos_dx = dFdx(fs_in.frag_position);
+    vec3 pos_dy = dFdy(fs_in.frag_position);
+    vec3 tex_dx = dFdx(vec3(fs_in.uv_0, 0.0));
+    vec3 tex_dy = dFdy(vec3(fs_in.uv_0, 0.0));
     vec3 t = (tex_dy.t * pos_dx - tex_dx.t * pos_dy) / (tex_dx.s * tex_dy.t - tex_dy.s * tex_dx.t);
 
 #ifdef NORMAL_LOC
-    vec3 ng = normalize(frag_normal);
+    vec3 ng = normalize(fs_in.frag_normal);
 #else
     vec3 = cross(pos_dx, pos_dy);
 #endif
@@ -185,21 +192,19 @@ vec3 get_normal()
     mat3 tbn_n = mat3(t, b, ng);
 
 #else
-
-    mat3 tbn_n = tbn;
-
+    mat3 tbn_n = fs_in.tbn;
 #endif
 
-    vec3 n = texture(material.normal_texture, uv_0).rgb;
+    vec3 n = texture(material.normal_texture, fs_in.uv_0).rgb;
     n = normalize(tbn_n * ((2.0 * n - 1.0) * vec3(1.0, 1.0, 1.0)));
     return n; // TODO NORMAL MAPPING
 
 #else
 
 #ifdef NORMAL_LOC
-    return frag_normal;
+    return fs_in.frag_normal;
 #else
-    return normalize(cam_pos - frag_position);
+    return normalize(cam_pos - fs_in.frag_position);
 #endif
 
 #endif
@@ -208,8 +213,8 @@ vec3 get_normal()
 // Fresnel
 vec3 specular_reflection(PBRInfo info)
 {
-     vec3 res = info.f0 + (1.0 - info.f0) * pow(clamp(1.0 - info.vh, 0.0, 1.0), 5.0);
-     return res;
+    vec3 res = info.f0 + (1.0 - info.f0) * pow(clamp(1.0 - info.vh, 0.0, 1.0), 5.0);
+    return res;
 }
 
 // Smith
@@ -240,26 +245,26 @@ vec3 compute_brdf(vec3 n, vec3 v, vec3 l,
                   vec3 f0, vec3 c_diff, vec3 albedo,
                   vec3 radiance)
 {
-        vec3 h = normalize(l+v);
-        float nl = clamp(dot(n, l), 0.001, 1.0);
-        float nv = clamp(abs(dot(n, v)), 0.001, 1.0);
-        float nh = clamp(dot(n, h), 0.0, 1.0);
-        float lh = clamp(dot(l, h), 0.0, 1.0);
-        float vh = clamp(dot(v, h), 0.0, 1.0);
-
-        PBRInfo info = PBRInfo(nl, nv, nh, lh, vh, roughness, metalness, f0, c_diff);
-
-        // Compute PBR terms
-        vec3 F = specular_reflection(info);
-        float G = geometric_occlusion(info);
-        float D = microfacet_distribution(info);
-
-        // Compute BRDF
-        vec3 diffuse_contrib = (1.0 - F) * c_diff / PI;
-        vec3 spec_contrib = F * G * D / (4.0 * nl * nv + 0.001);
-
-        vec3 color = nl * radiance * (diffuse_contrib + spec_contrib);
-        return color;
+    vec3 h = normalize(l+v);
+    float nl = clamp(dot(n, l), 0.001, 1.0);
+    float nv = clamp(abs(dot(n, v)), 0.001, 1.0);
+    float nh = clamp(dot(n, h), 0.0, 1.0);
+    float lh = clamp(dot(l, h), 0.0, 1.0);
+    float vh = clamp(dot(v, h), 0.0, 1.0);
+    
+    PBRInfo info = PBRInfo(nl, nv, nh, lh, vh, roughness, metalness, f0, c_diff);
+    
+    // Compute PBR terms
+    vec3 F = specular_reflection(info);
+    float G = geometric_occlusion(info);
+    float D = microfacet_distribution(info);
+    
+    // Compute BRDF
+    vec3 diffuse_contrib = (1.0 - F) * c_diff / PI;
+    vec3 spec_contrib = F * G * D / (4.0 * nl * nv + 0.001);
+    
+    vec3 color = nl * radiance * (diffuse_contrib + spec_contrib);
+    return color;
 }
 
 float texture2DCompare(sampler2D depths, vec2 uv, float compare) {
@@ -295,7 +300,7 @@ float PCF(sampler2D depths, vec2 size, vec2 uv, float compare){
 float shadow_calc(mat4 light_matrix, sampler2D shadow_map, float nl)
 {
     // Compute light texture UV coords
-    vec4 proj_coords = vec4(light_matrix * vec4(frag_position.xyz, 1.0));
+    vec4 proj_coords = vec4(light_matrix * vec4(fs_in.frag_position.xyz, 1.0));
     vec3 light_coords = proj_coords.xyz / proj_coords.w;
     light_coords = light_coords * 0.5 + 0.5;
     float current_depth = light_coords.z;
@@ -324,7 +329,7 @@ void main()
     float roughness = material.roughness_factor;
     float metallic = material.metallic_factor;
 #ifdef HAS_METALLIC_ROUGHNESS_TEX
-    vec2 mr = texture(material.metallic_roughness_texture, uv_0).rg;
+    vec2 mr = texture(material.metallic_roughness_texture, fs_in.uv_0).rg;
     roughness = roughness * mr.r;
     metallic = metallic * mr.g;
 #endif
@@ -336,7 +341,7 @@ void main()
     // Compute albedo
     vec4 base_color = material.base_color_factor;
 #ifdef HAS_BASE_COLOR_TEX
-    base_color = base_color * srgb_to_linear(texture(material.base_color_texture, uv_0));
+    base_color = base_color * srgb_to_linear(texture(material.base_color_texture, fs_in.uv_0));
 #endif
 
     // Compute specular and diffuse colors
@@ -350,7 +355,7 @@ void main()
     // Loop over lights
     for (int i = 0; i < n_directional_lights; i++) {
         vec3 direction = directional_lights[i].direction;
-        vec3 v = normalize(cam_pos - frag_position); // Vector towards camera
+        vec3 v = normalize(cam_pos - fs_in.frag_position); // Vector towards camera
         vec3 l = normalize(-1.0 * direction);   // Vector towards light
 
         // Compute attenuation and radiance
@@ -376,11 +381,11 @@ void main()
 
     for (int i = 0; i < n_point_lights; i++) {
         vec3 position = point_lights[i].position;
-        vec3 v = normalize(cam_pos - frag_position); // Vector towards camera
-        vec3 l = normalize(position - frag_position); // Vector towards light
+        vec3 v = normalize(cam_pos - fs_in.frag_position); // Vector towards camera
+        vec3 l = normalize(position - fs_in.frag_position); // Vector towards light
 
         // Compute attenuation and radiance
-        float dist = length(position - frag_position);
+        float dist = length(position - fs_in.frag_position);
         float attenuation = point_lights[i].intensity / (dist * dist);
         vec3 radiance = attenuation * point_lights[i].color;
 
@@ -391,14 +396,14 @@ void main()
     }
     for (int i = 0; i < n_spot_lights; i++) {
         vec3 position = spot_lights[i].position;
-        vec3 v = normalize(cam_pos - frag_position); // Vector towards camera
-        vec3 l = normalize(position - frag_position); // Vector towards light
+        vec3 v = normalize(cam_pos - fs_in.frag_position); // Vector towards camera
+        vec3 l = normalize(position - fs_in.frag_position); // Vector towards light
 
         // Compute attenuation and radiance
         vec3 direction = spot_lights[i].direction;
         float las = spot_lights[i].light_angle_scale;
         float lao = spot_lights[i].light_angle_offset;
-        float dist = length(position - frag_position);
+        float dist = length(position - fs_in.frag_position);
         float cd = clamp(dot(direction, -l), 0.0, 1.0);
         float attenuation = clamp(cd * las + lao, 0.0, 1.0);
         attenuation = attenuation * attenuation * spot_lights[i].intensity;
@@ -428,22 +433,41 @@ void main()
 
     // Apply occlusion
 #ifdef HAS_OCCLUSION_TEX
-    float ao = texture(material.occlusion_texture, uv_0).r;
+    float ao = texture(material.occlusion_texture, fs_in.uv_0).r;
     color.xyz *= ao;
 #endif
 
     // Apply emissive map
     vec3 emissive = material.emissive_factor;
 #ifdef HAS_EMISSIVE_TEX
-    emissive *= srgb_to_linear(texture(material.emissive_texture, uv_0)).rgb;
+    emissive *= srgb_to_linear(texture(material.emissive_texture, fs_in.uv_0)).rgb;
 #endif
     color.xyz += emissive * material.emissive_factor;
 
 #ifdef COLOR_0_LOC
-    color *= color_multiplier;
+    color *= fs_in.color_multiplier;
+#endif
+    frag_color = clamp(vec4(pow(color.xyz, vec3(1.0/2.2)), color.a * base_color.a), 0.0, 1.0);
+
+//#ifdef COLOR_0_LOC
+//    frag_color = clamp(vec4(fs_in.color_multiplier.xyz, 1.0), 0.0, 1.0);
+//#endif
+
+#ifdef BARYCENTRIC_COORDINATES
+    frag_color = vec4(fs_in.barycentric_coordinates.xyz, 1.0);
 #endif
 
-    frag_color = clamp(vec4(pow(color.xyz, vec3(1.0/2.2)), color.a * base_color.a), 0.0, 1.0);
+#ifdef UV_RENDERING
+    frag_color = vec4(fs_in.uv_0, 0.0, 1.0);
+#endif
+
+#ifdef FLOAT_RENDERING
+    frag_color = vec4(fs_in.color_multiplier.xyz, 1.0);
+#endif
+
+#ifdef TRIANGLE_ID_RENDERING
+    frag_color = vec4(gl_PrimitiveID, gl_PrimitiveID, gl_PrimitiveID, 1.0);
+#endif
 
 #else
     // TODO GLOSSY MATERIAL BRDF
@@ -452,5 +476,4 @@ void main()
 ///////////////////////////////////////////////////////////////////////////////
 // Handle Glossy Materials
 ///////////////////////////////////////////////////////////////////////////////
-
 }

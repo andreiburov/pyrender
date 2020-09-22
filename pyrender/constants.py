@@ -52,6 +52,14 @@ class RenderFlags(object):
     FLAT = 4096
     """Render the color buffer flat, with no lighting computations."""
     SEG = 8192
+    BARYCENTRIC_COORDINATES = 16384
+    """Render projected barycentric coordinates instead of the colors."""
+    UV_RENDERING = 32768
+    """Render projected uv coordinates instead of the colors."""
+    TRIANGLE_ID_RENDERING = 65536
+    """Render triangle id of the fragment triangle"""
+    FLOAT_RENDERING = 131072
+    """Render colors as float numbers"""
 
 
 class TextAlign:

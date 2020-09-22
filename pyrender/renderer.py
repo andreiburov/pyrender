@@ -48,8 +48,12 @@ class Renderer(object):
         self.point_size = point_size
         self.line_width = line_width
 
+        self.is_texture_rendering = False
+        self.force_fbo_reinit = False
+
         # Optional framebuffer for offscreen renders
         self._main_fb = None
+        self._main_tb = None
         self._main_cb = None
         self._main_db = None
         self._main_fb_ms = None
@@ -132,6 +136,15 @@ class Renderer(object):
             If :attr:`RenderFlags.OFFSCREEN` is set, the depth buffer
             in linear units.
         """
+        # Set up the texture rendering if needed
+        if flags & RenderFlags.UV_RENDERING or flags & RenderFlags.BARYCENTRIC_COORDINATES\
+                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING:
+            self.force_fbo_reinit = True if self.is_texture_rendering is False else False
+            self.is_texture_rendering = True
+        else:
+            self.force_fbo_reinit = True if self.is_texture_rendering is True else False
+            self.is_texture_rendering = False
+
         # Update context with meshes and textures
         self._update_context(scene, flags)
 
@@ -341,6 +354,10 @@ class Renderer(object):
             glClearColor(0.0, 0.0, 0.0, 1.0)
             if seg_node_map is None:
                 seg_node_map = {}
+        elif flags & RenderFlags.BARYCENTRIC_COORDINATES or flags & RenderFlags.UV_RENDERING\
+                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING:
+            glClearColor(*(np.array([-1, -1, -1, 1], dtype=np.float32)))
+            # glClearColor(*(np.zeros(4, dtype=np.float32)))
         else:
             glClearColor(*scene.bg_color)
 
@@ -575,13 +592,17 @@ class Renderer(object):
                 program.set_uniform(b.format('glossiness_factor'),
                                     material.glossinessFactor)
 
-            # Set blending options
-            if material.alphaMode == 'BLEND':
-                glEnable(GL_BLEND)
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            if flags & RenderFlags.BARYCENTRIC_COORDINATES or flags & RenderFlags.UV_RENDERING \
+                    or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING:
+                glDisable(GL_BLEND)
             else:
-                glEnable(GL_BLEND)
-                glBlendFunc(GL_ONE, GL_ZERO)
+                # Set blending options
+                if material.alphaMode == 'BLEND':
+                    glEnable(GL_BLEND)
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+                else:
+                    glEnable(GL_BLEND)
+                    glBlendFunc(GL_ONE, GL_ZERO)
 
             # Set wireframe mode
             wf = material.wireframe
@@ -920,6 +941,7 @@ class Renderer(object):
                 not flags & RenderFlags.SEG):
             vertex_shader = 'mesh.vert'
             fragment_shader = 'mesh.frag'
+            geometry_shader = 'mesh.geom'
         elif bool(program_flags & (ProgramFlags.VERTEX_NORMALS |
                                    ProgramFlags.FACE_NORMALS)):
             vertex_shader = 'vertex_normals.vert'
@@ -1004,6 +1026,17 @@ class Renderer(object):
             elif isinstance(primitive.material, SpecularGlossinessMaterial):
                 defines['USE_GLOSSY_MATERIAL'] = 1
 
+        # Set up alternative rendering defines
+        if flags & RenderFlags.BARYCENTRIC_COORDINATES:
+            defines['BARYCENTRIC_COORDINATES'] = 1
+        if flags & RenderFlags.UV_RENDERING:
+            assert bf & BufFlags.TEXCOORD_0, 'for UV rendering one needs to pass the UV mapping'
+            defines['UV_RENDERING'] = 1
+        if flags & RenderFlags.TRIANGLE_ID_RENDERING:
+            defines['TRIANGLE_ID_RENDERING'] = 1
+        if flags & RenderFlags.FLOAT_RENDERING:
+            defines['FLOAT_RENDERING'] = 1
+
         program = self._program_cache.get_program(
             vertex_shader=vertex_shader,
             fragment_shader=fragment_shader,
@@ -1025,7 +1058,10 @@ class Renderer(object):
         # If using offscreen render, bind main framebuffer
         if flags & RenderFlags.OFFSCREEN:
             self._configure_main_framebuffer()
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb_ms)
+            if not self.is_texture_rendering:
+                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb_ms)
+            else:
+                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb)
         else:
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)
 
@@ -1074,68 +1110,95 @@ class Renderer(object):
             self._delete_main_framebuffer()
 
         # If framebuffer doesn't exist, create it
-        if self._main_fb is None:
-            # Generate standard buffer
-            self._main_cb, self._main_db = glGenRenderbuffers(2)
-
-            glBindRenderbuffer(GL_RENDERBUFFER, self._main_cb)
-            glRenderbufferStorage(
-                GL_RENDERBUFFER, GL_RGBA,
-                self.viewport_width, self.viewport_height
-            )
-
+        if self._main_fb is None or self.force_fbo_reinit:
+            if self.force_fbo_reinit:
+                self._delete_main_framebuffer()
+            
+            if not self.is_texture_rendering:
+                self._main_cb = glGenRenderbuffers(1)
+                glBindRenderbuffer(GL_RENDERBUFFER, self._main_cb)
+                glRenderbufferStorage(
+                    GL_RENDERBUFFER, GL_RGBA8,
+                    self.viewport_width, self.viewport_height
+                )
+            else:
+                self._main_tb = glGenTextures(1)
+                glBindTexture(GL_TEXTURE_2D, self._main_tb)
+                data = np.ascontiguousarray(-np.ones((self.viewport_width, self.viewport_height, 4), dtype=np.float32))
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, self.viewport_width, self.viewport_height,
+                             0, GL_RGBA, GL_FLOAT, data)
+    
+            self._main_db = glGenRenderbuffers(1)
             glBindRenderbuffer(GL_RENDERBUFFER, self._main_db)
             glRenderbufferStorage(
                 GL_RENDERBUFFER, GL_DEPTH_COMPONENT24,
                 self.viewport_width, self.viewport_height
             )
-
+    
             self._main_fb = glGenFramebuffers(1)
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb)
-            glFramebufferRenderbuffer(
-                GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                GL_RENDERBUFFER, self._main_cb
-            )
+    
+            if not self.is_texture_rendering:
+                glFramebufferRenderbuffer(
+                    GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                    GL_RENDERBUFFER, self._main_cb
+                )
+            else:
+                glFramebufferTexture2D(
+                    GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                    GL_TEXTURE_2D, self._main_tb, 0
+                )
+    
             glFramebufferRenderbuffer(
                 GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
                 GL_RENDERBUFFER, self._main_db
             )
-
-            # Generate multisample buffer
-            self._main_cb_ms, self._main_db_ms = glGenRenderbuffers(2)
-            glBindRenderbuffer(GL_RENDERBUFFER, self._main_cb_ms)
-            glRenderbufferStorageMultisample(
-                GL_RENDERBUFFER, 4, GL_RGBA,
-                self.viewport_width, self.viewport_height
-            )
-            glBindRenderbuffer(GL_RENDERBUFFER, self._main_db_ms)
-            glRenderbufferStorageMultisample(
-                GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT24,
-                self.viewport_width, self.viewport_height
-            )
-            self._main_fb_ms = glGenFramebuffers(1)
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb_ms)
-            glFramebufferRenderbuffer(
-                GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                GL_RENDERBUFFER, self._main_cb_ms
-            )
-            glFramebufferRenderbuffer(
-                GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                GL_RENDERBUFFER, self._main_db_ms
-            )
+    
+            if not self.is_texture_rendering:
+                # Generate multisample buffer
+                self._main_cb_ms, self._main_db_ms = glGenRenderbuffers(2)
+                glBindRenderbuffer(GL_RENDERBUFFER, self._main_cb_ms)
+                glRenderbufferStorageMultisample(
+                    GL_RENDERBUFFER, 16, GL_RGBA,
+                    self.viewport_width, self.viewport_height
+                )
+                glBindRenderbuffer(GL_RENDERBUFFER, self._main_db_ms)
+                glRenderbufferStorageMultisample(
+                    GL_RENDERBUFFER, 16, GL_DEPTH_COMPONENT24,
+                    self.viewport_width, self.viewport_height
+                )
+                self._main_fb_ms = glGenFramebuffers(1)
+                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb_ms)
+                glFramebufferRenderbuffer(
+                    GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                    GL_RENDERBUFFER, self._main_cb_ms
+                )
+                glFramebufferRenderbuffer(
+                    GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                    GL_RENDERBUFFER, self._main_db_ms
+                )
 
             self._main_fb_dims = (self.viewport_width, self.viewport_height)
 
     def _delete_main_framebuffer(self):
         if self._main_fb is not None:
-            glDeleteFramebuffers(2, [self._main_fb, self._main_fb_ms])
+            glDeleteRenderbuffers(1, [self._main_fb])
+        if self._main_fb_ms is not None:
+            glDeleteRenderbuffers(1, [self._main_fb_ms])
         if self._main_cb is not None:
-            glDeleteRenderbuffers(2, [self._main_cb, self._main_cb_ms])
+            glDeleteRenderbuffers(1, [self._main_cb])
+        if self._main_cb_ms is not None:
+            glDeleteRenderbuffers(1, [self._main_cb_ms])
+        if self._main_tb is not None:
+            glDeleteRenderbuffers(1, [self._main_tb])
         if self._main_db is not None:
-            glDeleteRenderbuffers(2, [self._main_db, self._main_db_ms])
-
+            glDeleteRenderbuffers(1, [self._main_db])
+        if self._main_db_ms is not None:
+            glDeleteRenderbuffers(1, [self._main_db_ms])
+    
         self._main_fb = None
         self._main_cb = None
+        self._main_tb = None
         self._main_db = None
         self._main_fb_ms = None
         self._main_cb_ms = None
@@ -1145,17 +1208,19 @@ class Renderer(object):
     def _read_main_framebuffer(self, scene, flags):
         width, height = self._main_fb_dims[0], self._main_fb_dims[1]
 
-        # Bind framebuffer and blit buffers
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, self._main_fb_ms)
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb)
-        glBlitFramebuffer(
-            0, 0, width, height, 0, 0, width, height,
-            GL_COLOR_BUFFER_BIT, GL_LINEAR
-        )
-        glBlitFramebuffer(
-            0, 0, width, height, 0, 0, width, height,
-            GL_DEPTH_BUFFER_BIT, GL_NEAREST
-        )
+        if not self.is_texture_rendering:
+            # Bind framebuffer and blit buffers
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, self._main_fb_ms)
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, self._main_fb)
+            glBlitFramebuffer(
+                0, 0, width, height, 0, 0, width, height,
+                GL_COLOR_BUFFER_BIT, GL_LINEAR
+            )
+            glBlitFramebuffer(
+                0, 0, width, height, 0, 0, width, height,
+                GL_DEPTH_BUFFER_BIT, GL_NEAREST
+            )
+
         glBindFramebuffer(GL_READ_FRAMEBUFFER, self._main_fb)
 
         # Read depth
@@ -1189,18 +1254,25 @@ class Renderer(object):
         if flags & RenderFlags.DEPTH_ONLY:
             return depth_im
 
+        if not self.is_texture_rendering:
+            gl_type = GL_UNSIGNED_BYTE
+            np_type = np.uint8
+        else:
+            gl_type = GL_FLOAT
+            np_type = np.float32
+
         # Read color
         if flags & RenderFlags.RGBA:
             color_buf = glReadPixels(
-                0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE
+                0, 0, width, height, GL_RGBA, gl_type
             )
-            color_im = np.frombuffer(color_buf, dtype=np.uint8)
+            color_im = np.frombuffer(color_buf, dtype=np_type)
             color_im = color_im.reshape((height, width, 4))
         else:
             color_buf = glReadPixels(
-                0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE
+                0, 0, width, height, GL_RGB, gl_type
             )
-            color_im = np.frombuffer(color_buf, dtype=np.uint8)
+            color_im = np.frombuffer(color_buf, dtype=np_type)
             color_im = color_im.reshape((height, width, 3))
         color_im = np.flip(color_im, axis=0)
 

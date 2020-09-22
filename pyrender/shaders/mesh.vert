@@ -31,56 +31,60 @@ uniform mat4 V;
 uniform mat4 P;
 
 // Outputs
-out vec3 frag_position;
+out VS_OUT {
+     vec4 position;
+     vec3 frag_position;
 #ifdef NORMAL_LOC
-out vec3 frag_normal;
+     vec3 frag_normal;
 #endif
 #ifdef HAS_NORMAL_TEX
 #ifdef TANGENT_LOC
 #ifdef NORMAL_LOC
-out mat3 tbn;
+     mat3 tbn;
 #endif
 #endif
 #endif
 #ifdef TEXCOORD_0_LOC
-out vec2 uv_0;
+     vec2 uv_0;
 #endif
 #ifdef TEXCOORD_1_LOC
-out vec2 uv_1;
+     vec2 uv_1;
 #endif
 #ifdef COLOR_0_LOC
-out vec4 color_multiplier;
+     vec4 color_multiplier;
 #endif
+} vs_out;
 
 
 void main()
 {
-    gl_Position = P * V * M * inst_m * vec4(position, 1);
-    frag_position = vec3(M * inst_m * vec4(position, 1.0));
-
-    mat4 N = transpose(inverse(M * inst_m));
+     vs_out.position = P * V * M * inst_m * vec4(position, 1);
+     gl_Position = P * V * M * inst_m * vec4(position, 1);
+     vs_out.frag_position = vec3(M * inst_m * vec4(position, 1.0));
+ 
+     mat4 N = transpose(inverse(M * inst_m));
 
 #ifdef NORMAL_LOC
-    frag_normal = normalize(vec3(N * vec4(normal, 0.0)));
+     vs_out.frag_normal = normalize(vec3(N * vec4(normal, 0.0)));
 #endif
 
 #ifdef HAS_NORMAL_TEX
 #ifdef TANGENT_LOC
 #ifdef NORMAL_LOC
-    vec3 normal_w = normalize(vec3(N * vec4(normal, 0.0)));
-    vec3 tangent_w = normalize(vec3(N * vec4(tangent.xyz, 0.0)));
-    vec3 bitangent_w = cross(normal_w, tangent_w) * tangent.w;
-    tbn = mat3(tangent_w, bitangent_w, normal_w);
+     vec3 normal_w = normalize(vec3(N * vec4(normal, 0.0)));
+     vec3 tangent_w = normalize(vec3(N * vec4(tangent.xyz, 0.0)));
+     vec3 bitangent_w = cross(normal_w, tangent_w) * tangent.w;
+     vs_out.tbn = mat3(tangent_w, bitangent_w, normal_w);
 #endif
 #endif
 #endif
 #ifdef TEXCOORD_0_LOC
-    uv_0 = texcoord_0;
+     vs_out.uv_0 = texcoord_0;
 #endif
 #ifdef TEXCOORD_1_LOC
-    uv_1 = texcoord_1;
+     vs_out.uv_1 = texcoord_1;
 #endif
 #ifdef COLOR_0_LOC
-    color_multiplier = color_0;
+     vs_out.color_multiplier = color_0;
 #endif
 }
