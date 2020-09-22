@@ -1157,9 +1157,13 @@ class Renderer(object):
         if z_far is None:
             depth_im[noninf] = 2 * z_near / (1.0 - depth_im[noninf])
         else:
+            # depth_im[noninf] = ((2.0 * z_near * z_far) /
+            #                     (z_far + z_near - depth_im[noninf] *
+            #                     (z_far - z_near)))
+            
+            # object has to be at negative z in camera space
             depth_im[noninf] = ((2.0 * z_near * z_far) /
-                                (z_far + z_near - depth_im[noninf] *
-                                (z_far - z_near)))
+                                (-(z_far + z_near) - depth_im[noninf] * (z_near - z_far)))
         depth_im[inf_inds] = 0.0
 
         # Resize for macos if needed
