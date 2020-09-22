@@ -24,10 +24,10 @@ class OffscreenRenderer(object):
     def __init__(self, viewport_width, viewport_height, point_size=1.0):
         self.viewport_width = viewport_width
         self.viewport_height = viewport_height
-        self.point_size = point_size
-
+        
         self._platform = None
         self._renderer = None
+        self.point_size = point_size
         self._create()
 
     @property
@@ -59,6 +59,20 @@ class OffscreenRenderer(object):
     @point_size.setter
     def point_size(self, value):
         self._point_size = float(value)
+        if self._renderer:
+            self._renderer.point_size = self.point_size
+    
+    @property
+    def line_width(self):
+        """float : The width of screen-space lines, in pixels.
+        """
+        return self._line_width
+
+    @line_width.setter
+    def line_width(self, value):
+        self._line_width = float(value)
+        if self._renderer:
+            self._renderer.line_width = self.line_width
 
     def render(self, scene, flags=RenderFlags.NONE, seg_node_map=None):
         """Render a scene with the given set of flags.

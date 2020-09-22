@@ -37,7 +37,7 @@ class Renderer(object):
         Size of points in pixels. Defaults to 1.0.
     """
 
-    def __init__(self, viewport_width, viewport_height, point_size=1.0):
+    def __init__(self, viewport_width, viewport_height, point_size=1.0, line_width=1.0):
         self.dpscale = 1
         # Scaling needed on retina displays
         if sys.platform == 'darwin':
@@ -46,6 +46,7 @@ class Renderer(object):
         self.viewport_width = viewport_width
         self.viewport_height = viewport_height
         self.point_size = point_size
+        self.line_width = line_width
 
         # Optional framebuffer for offscreen renders
         self._main_fb = None
@@ -96,6 +97,16 @@ class Renderer(object):
     @point_size.setter
     def point_size(self, value):
         self._point_size = float(value)
+
+    @property
+    def line_width(self):
+        """float : The width of screen-space lines, in pixels.
+        """
+        return self._line_width
+
+    @line_width.setter
+    def line_width(self, value):
+        self._line_width = float(value)
 
     def render(self, scene, flags, seg_node_map=None):
         """Render a scene with the given set of flags.
@@ -599,6 +610,11 @@ class Renderer(object):
         if primitive.mode == GLTF.POINTS:
             glEnable(GL_PROGRAM_POINT_SIZE)
             glPointSize(self.point_size)
+
+        glDisable(GL_LINE_SMOOTH)
+        if primitive.mode == GLTF.LINES:
+            glEnable(GL_LINE_SMOOTH)
+            glLineWidth(self.line_width)
 
         # Render mesh
         n_instances = 1

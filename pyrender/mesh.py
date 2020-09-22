@@ -154,6 +154,19 @@ class Mesh(object):
         return mesh
 
     @staticmethod
+    def from_lines(points, indices, colors=None, normals=None, is_visible=True, poses=None):
+        primitive = Primitive(
+            positions=points,
+            normals=normals,
+            indices=indices,
+            color_0=colors,
+            mode=GLTF.LINES,
+            poses=poses
+        )
+        mesh = Mesh(primitives=[primitive], is_visible=is_visible)
+        return mesh
+
+    @staticmethod
     def from_trimesh(mesh, material=None, is_visible=True,
                      poses=None, wireframe=False, smooth=True):
         """Create a Mesh from a :class:`~trimesh.base.Trimesh`.
