@@ -939,9 +939,13 @@ class Renderer(object):
                 not flags & RenderFlags.DEPTH_ONLY and
                 not flags & RenderFlags.FLAT and
                 not flags & RenderFlags.SEG):
-            vertex_shader = 'mesh.vert'
-            fragment_shader = 'mesh.frag'
-            geometry_shader = 'mesh.geom'
+            if primitive.mode in (GLTF.POINTS, GLTF.LINES):
+                vertex_shader = 'pointcloud.vert'
+                fragment_shader = 'pointcloud.frag'
+            else:
+                vertex_shader = 'mesh.vert'
+                fragment_shader = 'mesh.frag'
+                geometry_shader = 'mesh.geom'
         elif bool(program_flags & (ProgramFlags.VERTEX_NORMALS |
                                    ProgramFlags.FACE_NORMALS)):
             vertex_shader = 'vertex_normals.vert'
