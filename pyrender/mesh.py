@@ -165,6 +165,29 @@ class Mesh(object):
         )
         mesh = Mesh(primitives=[primitive], is_visible=is_visible)
         return mesh
+    
+    @staticmethod
+    def from_pointcloud(pointcloud, is_visible=True):
+        """Create a Pointcloud from a set of points.
+
+        Parameters
+        ----------
+        pointcloud : :class:`~trimesh.base.PointCloud`
+        
+        Returns
+        -------
+        mesh : :class:`Mesh`
+            The created mesh.
+        """
+        primitive = Primitive(
+            positions=pointcloud.vertices,
+            normals=None,
+            color_0=pointcloud.colors,
+            mode=GLTF.POINTS,
+            poses=None
+        )
+        mesh = Mesh(primitives=[primitive], is_visible=is_visible)
+        return mesh
 
     @staticmethod
     def from_trimesh(mesh, material=None, is_visible=True,
