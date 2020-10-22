@@ -138,7 +138,7 @@ class Renderer(object):
         """
         # Set up the texture rendering if needed
         if flags & RenderFlags.UV_RENDERING or flags & RenderFlags.BARYCENTRIC_COORDINATES\
-                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING:
+                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING or flags & RenderFlags.NORMAL_RENDERING:
             self.force_fbo_reinit = True if self.is_texture_rendering is False else False
             self.is_texture_rendering = True
         else:
@@ -355,7 +355,7 @@ class Renderer(object):
             if seg_node_map is None:
                 seg_node_map = {}
         elif flags & RenderFlags.BARYCENTRIC_COORDINATES or flags & RenderFlags.UV_RENDERING\
-                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING:
+                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING or flags & RenderFlags.NORMAL_RENDERING:
             glClearColor(*(np.array([-1, -1, -1, 1], dtype=np.float32)))
             # glClearColor(*(np.zeros(4, dtype=np.float32)))
         else:
@@ -593,7 +593,7 @@ class Renderer(object):
                                     material.glossinessFactor)
 
             if flags & RenderFlags.BARYCENTRIC_COORDINATES or flags & RenderFlags.UV_RENDERING \
-                    or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING:
+                    or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING or flags & RenderFlags.NORMAL_RENDERING:
                 glDisable(GL_BLEND)
             else:
                 # Set blending options
@@ -1040,6 +1040,8 @@ class Renderer(object):
             defines['TRIANGLE_ID_RENDERING'] = 1
         if flags & RenderFlags.FLOAT_RENDERING:
             defines['FLOAT_RENDERING'] = 1
+        if flags & RenderFlags.NORMAL_RENDERING:
+            defines['NORMAL_RENDERING'] = 1
 
         program = self._program_cache.get_program(
             vertex_shader=vertex_shader,

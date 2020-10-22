@@ -449,9 +449,9 @@ void main()
 #endif
     frag_color = clamp(vec4(pow(color.xyz, vec3(1.0/2.2)), color.a * base_color.a), 0.0, 1.0);
 
-//#ifdef COLOR_0_LOC
-//    frag_color = clamp(vec4(fs_in.color_multiplier.xyz, 1.0), 0.0, 1.0);
-//#endif
+#ifdef NORMAL_RENDERING
+    frag_color = vec4(fs_in.frag_normal, 1.0);
+#endif
 
 #ifdef BARYCENTRIC_COORDINATES
     frag_color = vec4(fs_in.barycentric_coordinates.xyz, 1.0);

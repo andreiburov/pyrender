@@ -60,6 +60,7 @@ class RenderFlags(object):
     """Render triangle id of the fragment triangle"""
     FLOAT_RENDERING = 131072
     """Render colors as float numbers"""
+    NORMAL_RENDERING = 262144
 
 
 class TextAlign:
