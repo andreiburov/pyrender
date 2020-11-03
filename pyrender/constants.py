@@ -61,6 +61,8 @@ class RenderFlags(object):
     FLOAT_RENDERING = 131072
     """Render colors as float numbers"""
     NORMAL_RENDERING = 262144
+    """Render positions as float numbers"""
+    POSITION_RENDERING = 524288
 
 
 class TextAlign:

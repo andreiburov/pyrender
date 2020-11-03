@@ -465,6 +465,10 @@ void main()
     frag_color = vec4(fs_in.color_multiplier.xyz, 1.0);
 #endif
 
+#ifdef POSITION_RENDERING
+    frag_color = vec4(fs_in.frag_position.xyz, 1.0);
+#endif
+
 #ifdef TRIANGLE_ID_RENDERING
     frag_color = vec4(gl_PrimitiveID, gl_PrimitiveID, gl_PrimitiveID, 1.0);
 #endif
