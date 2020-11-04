@@ -1,4 +1,4 @@
-#version 330 core
+#version 430 core
 ///////////////////////////////////////////////////////////////////////////////
 // Structs
 ///////////////////////////////////////////////////////////////////////////////
@@ -138,6 +138,7 @@ in GS_OUT {
 #ifdef BARYCENTRIC_COORDINATES
     vec4 barycentric_coordinates;
 #endif
+    flat vec3 vertex_ids;
 } fs_in;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -470,7 +471,8 @@ void main()
 #endif
 
 #ifdef TRIANGLE_ID_RENDERING
-    frag_color = vec4(gl_PrimitiveID, gl_PrimitiveID, gl_PrimitiveID, 1.0);
+    //frag_color = vec4(gl_PrimitiveID, gl_PrimitiveID, gl_PrimitiveID, 1.0);
+    frag_color = vec4(fs_in.vertex_ids.xyz, 1.0);
 #endif
 
 #else

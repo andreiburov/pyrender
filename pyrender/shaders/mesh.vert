@@ -1,4 +1,4 @@
-#version 330 core
+#version 430 core
 
 // Vertex Attributes
 layout(location = 0) in vec3 position;
@@ -24,6 +24,8 @@ layout(location = JOINTS_0_LOC) in vec4 joints_0;
 layout(location = WEIGHTS_0_LOC) in vec4 weights_0;
 #endif
 layout(location = INST_M_LOC) in mat4 inst_m;
+
+in int gl_VertexID;
 
 // Uniforms
 uniform mat4 M;
@@ -53,6 +55,7 @@ out VS_OUT {
 #ifdef COLOR_0_LOC
      vec4 color_multiplier;
 #endif
+     int id;
 } vs_out;
 
 
@@ -87,4 +90,6 @@ void main()
 #ifdef COLOR_0_LOC
      vs_out.color_multiplier = color_0;
 #endif
+
+     vs_out.id = gl_VertexID;
 }

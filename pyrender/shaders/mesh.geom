@@ -1,4 +1,4 @@
-#version 330 core
+#version 430 core
 
 layout (triangles) in;
 layout (triangle_strip, max_vertices = 3) out;
@@ -27,6 +27,7 @@ in VS_OUT {
 #ifdef COLOR_0_LOC
     vec4 color_multiplier;
 #endif
+    int id;
 } gs_in[];
 
 out int gl_PrimitiveID;
@@ -55,6 +56,7 @@ out GS_OUT {
 #ifdef BARYCENTRIC_COORDINATES
     vec4 barycentric_coordinates;
 #endif
+flat vec3 vertex_ids;
 } gs_out;
 
 
@@ -86,6 +88,9 @@ void GenerateVertex(int index)
     gs_out.barycentric_coordinates[index] = 1.0;
 #endif
     gl_Position = gs_in[index].position;
+
+    gs_out.vertex_ids = vec3(gs_in[0].id, gs_in[1].id, gs_in[2].id);
+
     EmitVertex();
 }
 
