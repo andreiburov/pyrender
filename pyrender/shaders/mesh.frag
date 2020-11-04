@@ -471,7 +471,10 @@ void main()
 #endif
 
 #ifdef TRIANGLE_ID_RENDERING
-    //frag_color = vec4(gl_PrimitiveID, gl_PrimitiveID, gl_PrimitiveID, 1.0);
+    frag_color = vec4(gl_PrimitiveID, gl_PrimitiveID, gl_PrimitiveID, 1.0);
+#endif
+
+#ifdef VERTEX_ID_RENDERING
     frag_color = vec4(fs_in.vertex_ids.xyz, 1.0);
 #endif
 

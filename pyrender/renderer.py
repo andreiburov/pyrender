@@ -137,9 +137,10 @@ class Renderer(object):
             in linear units.
         """
         # Set up the texture rendering if needed
-        if flags & RenderFlags.UV_RENDERING or flags & RenderFlags.BARYCENTRIC_COORDINATES\
-                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING\
-                or flags & RenderFlags.NORMAL_RENDERING or flags & RenderFlags.POSITION_RENDERING:
+        if flags & RenderFlags.UV_RENDERING or flags & RenderFlags.BARYCENTRIC_COORDINATES \
+                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.VERTEX_ID_RENDERING\
+                or flags & RenderFlags.FLOAT_RENDERING or flags & RenderFlags.NORMAL_RENDERING\
+                or flags & RenderFlags.POSITION_RENDERING:
             self.force_fbo_reinit = True if self.is_texture_rendering is False else False
             self.is_texture_rendering = True
         else:
@@ -355,9 +356,10 @@ class Renderer(object):
             glClearColor(0.0, 0.0, 0.0, 1.0)
             if seg_node_map is None:
                 seg_node_map = {}
-        elif flags & RenderFlags.BARYCENTRIC_COORDINATES or flags & RenderFlags.UV_RENDERING\
-                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING\
-                or flags & RenderFlags.NORMAL_RENDERING or flags & RenderFlags.POSITION_RENDERING:
+        elif flags & RenderFlags.UV_RENDERING or flags & RenderFlags.BARYCENTRIC_COORDINATES \
+                or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.VERTEX_ID_RENDERING\
+                or flags & RenderFlags.FLOAT_RENDERING or flags & RenderFlags.NORMAL_RENDERING\
+                or flags & RenderFlags.POSITION_RENDERING:
             glClearColor(*(np.array([-1, -1, -1, 1], dtype=np.float32)))
             # glClearColor(*(np.zeros(4, dtype=np.float32)))
         else:
@@ -594,9 +596,10 @@ class Renderer(object):
                 program.set_uniform(b.format('glossiness_factor'),
                                     material.glossinessFactor)
 
-            if flags & RenderFlags.BARYCENTRIC_COORDINATES or flags & RenderFlags.UV_RENDERING \
-                    or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.FLOAT_RENDERING\
-                    or flags & RenderFlags.NORMAL_RENDERING or flags & RenderFlags.POSITION_RENDERING:
+            if flags & RenderFlags.UV_RENDERING or flags & RenderFlags.BARYCENTRIC_COORDINATES \
+                    or flags & RenderFlags.TRIANGLE_ID_RENDERING or flags & RenderFlags.VERTEX_ID_RENDERING \
+                    or flags & RenderFlags.FLOAT_RENDERING or flags & RenderFlags.NORMAL_RENDERING \
+                    or flags & RenderFlags.POSITION_RENDERING:
                 glDisable(GL_BLEND)
             else:
                 # Set blending options
@@ -1047,6 +1050,8 @@ class Renderer(object):
             defines['NORMAL_RENDERING'] = 1
         if flags & RenderFlags.POSITION_RENDERING:
             defines['POSITION_RENDERING'] = 1
+        if flags & RenderFlags.VERTEX_ID_RENDERING:
+            defines['VERTEX_ID_RENDERING'] = 1
 
         program = self._program_cache.get_program(
             vertex_shader=vertex_shader,

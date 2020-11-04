@@ -58,12 +58,14 @@ class RenderFlags(object):
     """Render projected uv coordinates instead of the colors."""
     TRIANGLE_ID_RENDERING = 65536
     """Render triangle id of the fragment triangle"""
-    FLOAT_RENDERING = 131072
+    VERTEX_ID_RENDERING = 131072
+    """Render vertex id of the fragment triangle"""
+    FLOAT_RENDERING = 262144
     """Render colors as float numbers"""
-    NORMAL_RENDERING = 262144
+    NORMAL_RENDERING = 524288
+    """Render normals as floats"""
+    POSITION_RENDERING = 1048576
     """Render positions as float numbers"""
-    POSITION_RENDERING = 524288
-
 
 class TextAlign:
     """Text alignment options for captions.
