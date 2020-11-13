@@ -1198,15 +1198,15 @@ class Renderer(object):
 
     def _delete_main_framebuffer(self):
         if self._main_fb is not None:
-            glDeleteRenderbuffers(1, [self._main_fb])
+            glDeleteFramebuffers(1, [self._main_fb])
         if self._main_fb_ms is not None:
-            glDeleteRenderbuffers(1, [self._main_fb_ms])
+            glDeleteFramebuffers(1, [self._main_fb_ms])
         if self._main_cb is not None:
             glDeleteRenderbuffers(1, [self._main_cb])
         if self._main_cb_ms is not None:
             glDeleteRenderbuffers(1, [self._main_cb_ms])
         if self._main_tb is not None:
-            glDeleteRenderbuffers(1, [self._main_tb])
+            glDeleteTextures(self._main_tb)
         if self._main_db is not None:
             glDeleteRenderbuffers(1, [self._main_db])
         if self._main_db_ms is not None:
