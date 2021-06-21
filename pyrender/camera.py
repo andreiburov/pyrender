@@ -206,6 +206,96 @@ class PerspectiveCamera(Camera):
         return P
 
 
+class OrthoCamera(Camera):
+    """Simulate Opengl glOrtho.
+
+    Parameters
+    ----------
+    xmag : float
+        The floating-point horizontal magnification of the view.
+    ymag : float
+        The floating-point vertical magnification of the view.
+    znear : float
+        The floating-point distance to the near clipping plane.
+        If not specified, defaults to 0.05.
+    zfar : float
+        The floating-point distance to the far clipping plane.
+        ``zfar`` must be greater than ``znear``.
+        If not specified, defaults to 100.0.
+    name : str, optional
+        The user-defined name of this object.
+    """
+
+    def __init__(self,
+                 xmag,
+                 ymag,
+                 zmag,
+                 name=None):
+        super(OrthoCamera, self).__init__(
+            name=name,
+        )
+
+        self.xmag = xmag
+        self.ymag = ymag
+        self.zmag = zmag
+
+    @property
+    def xmag(self):
+        """float : The horizontal magnification of the view.
+        """
+        return self._xmag
+
+    @xmag.setter
+    def xmag(self, value):
+        value = float(value)
+        self._xmag = value
+
+    @property
+    def ymag(self):
+        """float : The vertical magnification of the view.
+        """
+        return self._ymag
+
+    @ymag.setter
+    def ymag(self, value):
+        value = float(value)
+        self._ymag = value
+
+    @property
+    def zmag(self):
+        """float : The vertical magnification of the view.
+        """
+        return self._zmag
+
+    @zmag.setter
+    def zmag(self, value):
+        value = float(value)
+        self._zmag = value
+
+    def get_projection_matrix(self, width=None, height=None):
+        """Return the OpenGL projection matrix for this camera.
+
+        Parameters
+        ----------
+        width : int
+            Width of the current viewport, in pixels.
+            Unused in this function.
+        height : int
+            Height of the current viewport, in pixels.
+            Unused in this function.
+        """
+        xmag = self.xmag
+        ymag = self.ymag
+        zmag = self.zmag
+
+        P = np.zeros((4,4))
+        P[0][0] = 1.0 / xmag
+        P[1][1] = 1.0 / ymag
+        P[2][2] = 1.0 / zmag
+        P[3][3] = 1.0
+        return P
+
+
 class OrthographicCamera(Camera):
     """A perspective camera for perspective projection.
 
@@ -276,8 +366,8 @@ class OrthographicCamera(Camera):
     @znear.setter
     def znear(self, value):
         value = float(value)
-        if value <= 0:
-            raise ValueError('z-near must be > 0.0')
+        # if value <= 0:
+        #     raise ValueError('z-near must be > 0.0')
         self._znear = value
 
     def get_projection_matrix(self, width=None, height=None):
